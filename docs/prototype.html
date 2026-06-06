@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>EInk Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #ffffff;
+  --fg: #000000;
+  --gray: #555555;
+  --light-gray: #999999;
+  --border: 2px solid #000;
+  --font-serif: 'Noto Serif SC', 'PingFang SC', serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { font-size: 16px; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-serif);
+  width: 100vw; height: 100vh;
+  overflow: hidden; display: flex; flex-direction: column;
+  user-select: none;
+}
+
+/* ─── STATUS BAR ─────────────────── */
+#statusBar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 12px; border-bottom: var(--border);
+  background: #000; color: #fff;
+  font-family: var(--font-mono); font-size: 10px;
+  flex-shrink: 0; height: 28px;
+}
+.s-left { display: flex; align-items: center; gap: 8px; }
+.s-right { display: flex; align-items: center; gap: 10px; }
+#statusRefresh { opacity: 0.75; }
+
+/* ─── MAIN CONTENT ───────────────── */
+#mainContent { flex: 1; overflow: hidden; position: relative; }
+.mode { display: none; width: 100%; height: 100%; flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+.mode.active { display: flex; }
+::-webkit-scrollbar { display: none; }
+
+/* ─── BOTTOM NAV ─────────────────── */
+#bottomNav {
+  display: flex; align-items: stretch;
+  border-top: var(--border); flex-shrink: 0; height: 46px;
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px;
+  cursor: pointer; border-right: 1px solid #000;
+  background: #fff; gap: 2px;
+}
+.nav-btn:last-child { border-right: none; }
+.nav-btn.active { background: #000; color: #fff; }
+.nav-icon { font-size: 15px; line-height: 1; }
+
+/* ─── SHARED WIDGETS ─────────────── */
+.section-pad { padding: 14px 14px; }
+.widget-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--gray); text-transform: uppercase; margin-bottom: 6px;
+}
+.divider { border: none; border-top: 1px solid #000; margin: 0; flex-shrink: 0; }
+.divider-soft { border: none; border-top: 1px solid #ddd; margin: 0; flex-shrink: 0; }
+.box { border: var(--border); padding: 10px 12px; }
+.btn {
+  border: var(--border); background: #fff; padding: 6px 14px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; font-family: var(--font-serif);
+}
+.btn-solid { background: #000; color: #fff; }
+.btn:active { opacity: 0.6; }
+
+/* ═══════════════════════════════════
+   MODE ① — 时钟 / 主页
+═══════════════════════════════════ */
+#mode-clock { padding: 0; gap: 0; }
+.clock-block {
+  padding: 16px 14px 12px; text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+.clock-time {
+  font-family: var(--font-mono); font-size: clamp(56px, 18vw, 80px);
+  font-weight: 700; letter-spacing: -3px; line-height: 1;
+}
+.clock-date { font-size: 13px; font-weight: 600; letter-spacing: 1px; margin-top: 4px; }
+.clock-lunar { font-size: 10px; color: var(--gray); letter-spacing: 1px; margin-top: 2px; }
+
+.weather-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid #ddd; gap: 8px;
+}
+.weather-left .w-temp {
+  font-family: var(--font-mono); font-size: 34px; font-weight: 700; line-height: 1;
+}
+.weather-left .w-desc { font-size: 11px; color: var(--gray); margin-top: 2px; }
+.weather-right { text-align: right; }
+.w-icon { font-size: 30px; display: block; }
+.w-range { font-family: var(--font-mono); font-size: 11px; margin-top: 2px; }
+.weather-details {
+  display: flex; gap: 10px; padding: 6px 14px;
+  font-size: 10px; color: var(--gray); border-bottom: 1px solid #ddd;
+  flex-wrap: wrap;
+}
+
+.todo-block { padding: 10px 14px; border-bottom: 1px solid #ddd; }
+.todo-item {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 4px 0; font-size: 12px; border-bottom: 1px solid #f0f0f0;
+}
+.todo-item:last-child { border-bottom: none; }
+.todo-time { font-family: var(--font-mono); font-size: 10px; color: var(--gray); min-width: 38px; }
+
+.quote-block { padding: 10px 14px; margin-top: auto; }
+#dailyQuote { font-size: 12px; line-height: 1.7; color: #333; }
+#quoteAuthor { font-size: 10px; color: var(--light-gray); margin-top: 3px; text-align: right; }
+
+/* ═══════════════════════════════════
+   MODE ② — 日历
+═══════════════════════════════════ */
+#mode-calendar { padding: 0; }
+.cal-header {
+  padding: 12px 14px 8px; border-bottom: var(--border);
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-shrink: 0;
+}
+.cal-title { font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+.cal-subtitle { font-size: 10px; color: var(--gray); margin-top: 2px; }
+.cal-nav { display: flex; gap: 6px; }
+
+.cal-grid { width: 100%; border-collapse: collapse; flex-shrink: 0; }
+.cal-grid th {
+  font-size: 9px; font-weight: 700; padding: 6px 0; text-align: center;
+  border-bottom: 1px solid #000; letter-spacing: 1px;
+}
+.cal-grid th:first-child, .cal-grid th:last-child { color: #888; }
+.cal-grid td {
+  text-align: center; border: 1px solid #e8e8e8;
+  width: 14.28%; cursor: pointer; position: relative;
+}
+.cal-day {
+  padding: 3px 1px 2px; min-height: 36px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.cal-num { font-size: 13px; font-weight: 600; line-height: 1.2; font-family: var(--font-mono); }
+.cal-sub { font-size: 8px; color: var(--gray); margin-top: 1px; line-height: 1; }
+.cal-grid td.today .cal-day { background: #000; color: #fff; }
+.cal-grid td.today .cal-sub { color: #bbb; }
+.cal-grid td.weekend .cal-num { color: #999; }
+.cal-grid td.today.weekend .cal-num { color: #fff; }
+.cal-grid td.other-month { opacity: 0.3; }
+.cal-grid td.holiday::after {
+  content: ''; position: absolute; top: 3px; right: 3px;
+  width: 4px; height: 4px; background: #000; border-radius: 50%;
+}
+.cal-grid td.today.holiday::after { background: #fff; }
+
+.cal-footer {
+  padding: 8px 14px; border-top: var(--border);
+  font-size: 11px; flex: 1; overflow-y: auto;
+}
+.festival-row { display: flex; gap: 10px; padding: 3px 0; border-bottom: 1px solid #f0f0f0; }
+.festival-row:last-child { border-bottom: none; }
+.festival-date { font-family: var(--font-mono); color: var(--gray); min-width: 36px; font-size: 10px; }
+
+/* ═══════════════════════════════════
+   MODE ③ — 资讯
+═══════════════════════════════════ */
+#mode-info { padding: 0; gap: 0; }
+.info-weather-big {
+  padding: 12px 14px; border-bottom: var(--border);
+  display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0;
+}
+.info-temp-big { font-family: var(--font-mono); font-size: 52px; font-weight: 900; line-height: 1; }
+.info-city { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--gray); margin-bottom: 4px; }
+.info-desc { font-size: 12px; margin-top: 2px; }
+.info-right { text-align: center; }
+.info-icon { font-size: 40px; display: block; }
+.info-range { font-family: var(--font-mono); font-size: 11px; margin-top: 4px; }
+
+.forecast-strip {
+  display: flex; border-bottom: var(--border);
+  flex-shrink: 0;
+}
+.fc-day {
+  flex: 1; text-align: center; padding: 7px 2px;
+  font-size: 10px; border-right: 1px solid #ddd;
+}
+.fc-day:last-child { border-right: none; }
+.fc-name { font-weight: 700; font-size: 9px; margin-bottom: 3px; }
+.fc-icon { font-size: 14px; margin: 2px 0; }
+.fc-temp { font-family: var(--font-mono); font-size: 9px; }
+
+.news-block { padding: 10px 14px; flex: 1; overflow-y: auto; }
+.news-item { padding: 7px 0; border-bottom: 1px solid #e0e0e0; }
+.news-item:last-child { border-bottom: none; }
+.news-tag {
+  font-size: 8px; font-weight: 900; letter-spacing: 2px; color: var(--gray);
+  border: 1px solid currentColor; padding: 1px 4px; display: inline-block; margin-bottom: 3px;
+}
+.news-text { font-size: 12px; line-height: 1.5; }
+
+/* ═══════════════════════════════════
+   MODE ④ — 专注
+═══════════════════════════════════ */
+#mode-focus {
+  align-items: center; justify-content: center;
+  gap: 16px; padding: 20px 18px;
+}
+.focus-time {
+  font-family: var(--font-mono); font-size: clamp(64px, 20vw, 90px);
+  font-weight: 700; letter-spacing: -3px; line-height: 1;
+}
+.focus-date { font-size: 12px; letter-spacing: 3px; color: var(--gray); }
+.pomodoro-box { width: 100%; border: var(--border); padding: 14px 12px; text-align: center; }
+.pom-label { font-size: 9px; letter-spacing: 3px; font-weight: 700; color: var(--gray); margin-bottom: 8px; }
+.pom-timer { font-family: var(--font-mono); font-size: 40px; font-weight: 700; }
+.pom-status { font-size: 10px; color: var(--gray); margin-top: 4px; min-height: 14px; }
+.pom-btns { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+.pom-count { font-size: 11px; color: var(--gray); letter-spacing: 1px; }
+
+/* ═══════════════════════════════════
+   MODE ⑤ — 壁纸
+═══════════════════════════════════ */
+#mode-wallpaper { position: relative; background: #000; overflow: hidden; }
+.wp-bg {
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,.03) 3px, rgba(255,255,255,.03) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255,255,255,.03) 3px, rgba(255,255,255,.03) 4px),
+    radial-gradient(ellipse at 30% 40%, #222 0%, #000 70%);
+  /* 实际使用时替换为: background-image: url('your-image.jpg'); background-size: cover; background-position: center; */
+}
+.wp-hint {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  color: #333; font-size: 10px; letter-spacing: 2px; text-align: center;
+}
+.wp-overlay {
+  position: relative; z-index: 1;
+  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  padding: 14px;
+  margin-top: auto;
+  color: #fff;
+}
+.wp-time { font-family: var(--font-mono); font-size: 48px; font-weight: 700; line-height: 1; }
+.wp-date { font-size: 12px; letter-spacing: 2px; color: #ccc; margin-top: 2px; }
+.wp-info { font-size: 10px; color: #888; margin-top: 6px; display: flex; gap: 12px; }
+
+/* ═══════════════════════════════════
+   SETTINGS OVERLAY
+═══════════════════════════════════ */
+#settingsOverlay {
+  position: fixed; inset: 0; background: #fff; z-index: 100;
+  display: none; flex-direction: column;
+}
+#settingsOverlay.open { display: flex; }
+.s-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; border-bottom: var(--border); flex-shrink: 0;
+}
+.s-title { font-size: 18px; font-weight: 900; letter-spacing: 1px; }
+.s-close {
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  padding: 5px 10px; border: var(--border); letter-spacing: 1px;
+}
+.s-body { flex: 1; overflow-y: auto; }
+.s-section { border-bottom: 1px solid #e0e0e0; }
+.s-section-title {
+  font-size: 8px; font-weight: 900; letter-spacing: 2.5px;
+  padding: 10px 14px 4px; color: var(--gray); text-transform: uppercase;
+}
+.s-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; border-bottom: 1px solid #f5f5f5; gap: 12px;
+}
+.s-row:last-child { border-bottom: none; }
+.s-label { font-size: 13px; font-weight: 600; flex: 1; }
+.s-sub { font-size: 10px; color: var(--light-gray); margin-top: 2px; }
+.s-action { font-size: 11px; font-weight: 700; color: var(--gray); cursor: pointer; }
+
+/* Toggle */
+.toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.t-slider {
+  position: absolute; inset: 0; background: #ddd;
+  border: 2px solid #000; cursor: pointer;
+}
+.toggle input:checked + .t-slider { background: #000; }
+.t-slider::after {
+  content: ''; position: absolute;
+  width: 16px; height: 16px; left: 2px; top: 2px; background: #fff;
+  transition: transform 0.1s;
+}
+.toggle input:checked + .t-slider::after { transform: translateX(18px); }
+
+/* Select */
+.s-select {
+  border: 2px solid #000; background: #fff; padding: 5px 8px;
+  font-size: 12px; font-weight: 600; font-family: var(--font-serif);
+  cursor: pointer; outline: none; min-width: 80px;
+}
+
+/* Time input */
+.s-time {
+  border: 2px solid #000; padding: 5px 8px;
+  font-size: 12px; font-family: var(--font-mono);
+  width: 78px; outline: none; text-align: center;
+}
+
+/* Text input */
+.s-input {
+  border: 2px solid #000; padding: 5px 8px;
+  font-size: 12px; font-family: var(--font-serif);
+  outline: none; min-width: 100px;
+}
+
+/* Mode cards */
+.mode-cards {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; padding: 10px 14px;
+}
+.mode-card {
+  border: 2px solid #ccc; padding: 10px 6px; text-align: center;
+  cursor: pointer; font-size: 10px; font-weight: 700;
+}
+.mode-card.sel { border-color: #000; background: #000; color: #fff; }
+.mc-icon { font-size: 18px; margin-bottom: 4px; }
+
+/* Interval chips */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 14px 12px; }
+.chip {
+  border: 2px solid #000; padding: 4px 12px;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  background: #fff; font-family: var(--font-serif);
+}
+.chip.sel { background: #000; color: #fff; }
+
+/* Night time row */
+.night-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 14px 12px; font-size: 12px;
+}
+
+/* ═══════════════════════════════════
+   NIGHT OVERLAY
+═══════════════════════════════════ */
+#nightOverlay {
+  display: none; position: fixed; inset: 0;
+  background: #000; z-index: 200;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+  cursor: pointer;
+}
+#nightOverlay.show { display: flex; }
+.night-time {
+  font-family: var(--font-mono); font-size: clamp(64px, 20vw, 90px);
+  font-weight: 700; color: #e0e0e0; letter-spacing: -3px; line-height: 1;
+}
+.night-info { font-size: 13px; color: #555; letter-spacing: 2px; }
+.night-hint { font-size: 10px; color: #333; letter-spacing: 1.5px; margin-top: 20px; }
+
+/* ─── footer ─── */
+.s-footer { padding: 16px 14px; text-align: center; font-size: 10px; color: #bbb; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<!-- ▌STATUS BAR -->
+<div id="statusBar">
+  <div class="s-left">
+    <span id="statusMode">时钟</span>
+    <span style="opacity:.4">│</span>
+    <span id="statusRefresh">↺ 15min</span>
+  </div>
+  <div class="s-right">
+    <span id="statusBattery">🔋 82%</span>
+    <span id="statusTime">--:--</span>
+  </div>
+</div>
+
+<!-- ▌MAIN -->
+<div id="mainContent">
+
+  <!-- ① 时钟 -->
+  <section class="mode active" id="mode-clock">
+    <div class="clock-block">
+      <div class="clock-time" id="clockTime">--:--</div>
+      <div class="clock-date" id="clockDate">加载中…</div>
+      <div class="clock-lunar" id="clockLunar">农历 加载中…</div>
+    </div>
+
+    <div class="weather-row" id="weatherRow">
+      <div class="weather-left">
+        <div class="widget-label" id="weatherCity">📍 北京</div>
+        <div class="w-temp" id="weatherTemp">28°</div>
+        <div class="w-desc" id="weatherDesc">多云转晴</div>
+        <div class="w-range" id="weatherRange" style="font-family:var(--font-mono);font-size:11px;color:var(--gray);margin-top:3px;">28° / 19°</div>
+      </div>
+      <div class="weather-right">
+        <span class="w-icon" id="weatherIcon">⛅</span>
+      </div>
+    </div>
+    <div class="weather-details" id="weatherDetails">
+      <span id="wdWind">🌬 东南风 3级</span>
+      <span id="wdHumid">💧 湿度 65%</span>
+      <span id="wdAqi">AQI: 良 45</span>
+      <span id="wdSunrise">🌅 05:11</span>
+    </div>
+
+    <div class="todo-block" id="todoBlock">
+      <div class="widget-label">今日安排</div>
+      <div id="todoList">
+        <div class="todo-item"><span class="todo-time">10:00</span><span>产品评审会议</span></div>
+        <div class="todo-item"><span class="todo-time">14:30</span><span>代码 Code Review</span></div>
+        <div class="todo-item"><span class="todo-time">明天</span><span>还图书馆的书</span></div>
+      </div>
+    </div>
+
+    <div class="quote-block" id="quoteBlock">
+      <div class="widget-label">每日一句</div>
+      <div id="dailyQuote">读书不觉已春深，一寸光阴一寸金。</div>
+      <div id="quoteAuthor">— 王贞白《白鹿洞》</div>
+    </div>
+  </section>
+
+  <!-- ② 日历 -->
+  <section class="mode" id="mode-calendar">
+    <div class="cal-header">
+      <div>
+        <div class="cal-title" id="calTitle">2026年6月</div>
+        <div class="cal-subtitle" id="calSub">农历五月 · 丙午年</div>
+      </div>
+      <div class="cal-nav">
+        <button class="btn" onclick="changeMonth(-1)" style="padding:4px 10px;">◀</button>
+        <button class="btn" onclick="changeMonth(0)" style="padding:4px 8px;" title="回到今天">●</button>
+        <button class="btn" onclick="changeMonth(1)" style="padding:4px 10px;">▶</button>
+      </div>
+    </div>
+    <table class="cal-grid">
+      <thead><tr>
+        <th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th>
+      </tr></thead>
+      <tbody id="calBody"></tbody>
+    </table>
+    <div class="cal-footer">
+      <div class="widget-label">节日 / 节气</div>
+      <div id="festivalList"></div>
+    </div>
+  </section>
+
+  <!-- ③ 资讯 -->
+  <section class="mode" id="mode-info">
+    <div class="info-weather-big">
+      <div>
+        <div class="info-city" id="infoCity">📍 北京市</div>
+        <div class="info-temp-big" id="infoTemp">28°C</div>
+        <div class="info-desc" id="infoDesc">多云转晴</div>
+        <div style="font-size:11px;color:var(--gray);margin-top:4px;font-family:var(--font-mono);" id="infoDetails">湿度 65% · 东南风 3级</div>
+      </div>
+      <div class="info-right">
+        <span class="info-icon" id="infoIcon">⛅</span>
+        <div class="info-range" id="infoRange">H:28 L:19</div>
+      </div>
+    </div>
+    <div class="forecast-strip" id="forecastStrip">
+      <div class="fc-day"><div class="fc-name">今天</div><div class="fc-icon">⛅</div><div class="fc-temp">28/19</div></div>
+      <div class="fc-day"><div class="fc-name">明天</div><div class="fc-icon">🌤</div><div class="fc-temp">30/21</div></div>
+      <div class="fc-day"><div class="fc-name">周四</div><div class="fc-icon">☀️</div><div class="fc-temp">32/22</div></div>
+      <div class="fc-day"><div class="fc-name">周五</div><div class="fc-icon">🌧</div><div class="fc-temp">25/18</div></div>
+      <div class="fc-day"><div class="fc-name">周六</div><div class="fc-icon">⛅</div><div class="fc-temp">27/19</div></div>
+    </div>
+    <div class="news-block">
+      <div class="widget-label">今日要闻</div>
+      <div id="newsList">
+        <div class="news-item"><div class="news-tag">科技</div><div class="news-text">国内大模型竞争加剧，多家厂商发布新一代基础模型</div></div>
+        <div class="news-item"><div class="news-tag">财经</div><div class="news-text">A股午后震荡，沪指收涨 0.3%，科技板块领涨</div></div>
+        <div class="news-item"><div class="news-tag">国内</div><div class="news-text">多地迎来强降雨，气象部门发布黄色预警请注意防范</div></div>
+        <div class="news-item"><div class="news-tag">体育</div><div class="news-text">中超联赛第 12 轮结束，上海海港领跑积分榜</div></div>
+        <div class="news-item"><div class="news-tag">生活</div><div class="news-text">端午假期出行高峰预测：高铁预订量同比增长 18%</div></div>
+        <div class="news-item"><div class="news-tag">文化</div><div class="news-text">2026年博物馆日活动启动，超千家场馆免费开放</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ④ 专注 -->
+  <section class="mode" id="mode-focus">
+    <div class="focus-time" id="focusTime">--:--</div>
+    <div class="focus-date" id="focusDate">加载中…</div>
+    <hr class="divider" style="width:100%;">
+    <div class="pomodoro-box">
+      <div class="pom-label">POMODORO 番茄专注</div>
+      <div class="pom-timer" id="pomTimer">25:00</div>
+      <div class="pom-status" id="pomStatus">就绪 · 点击开始</div>
+      <div class="pom-btns">
+        <button class="btn btn-solid" id="pomStartBtn" onclick="togglePom()">▶ 开始</button>
+        <button class="btn" onclick="resetPom()">↺ 重置</button>
+        <button class="btn" id="pomTimeBtn" onclick="cyclePomTime()">25 min</button>
+      </div>
+    </div>
+    <div class="pom-count" id="pomCount">今日完成：0 个番茄 🍅</div>
+  </section>
+
+  <!-- ⑤ 壁纸 -->
+  <section class="mode" id="mode-wallpaper">
+    <div class="wp-bg"></div>
+    <div class="wp-hint">
+      ── 壁纸区域 ──<br>
+      <span style="font-size:8px;">在 APK 中替换为图片背景</span>
+    </div>
+    <div class="wp-overlay">
+      <div class="wp-time" id="wpTime">--:--</div>
+      <div class="wp-date" id="wpDate">加载中…</div>
+      <div class="wp-info">
+        <span id="wpBattery">🔋 82%</span>
+        <span id="wpWeather">⛅ 28°C 多云</span>
+        <span id="wpLunar">农历 五月初八</span>
+      </div>
+    </div>
+  </section>
+
+</div><!-- end mainContent -->
+
+<!-- ▌BOTTOM NAV -->
+<nav id="bottomNav">
+  <div class="nav-btn active" id="nav-clock" onclick="switchMode('clock')">
+    <span class="nav-icon">🕐</span><span>时钟</span>
+  </div>
+  <div class="nav-btn" id="nav-calendar" onclick="switchMode('calendar')">
+    <span class="nav-icon">📅</span><span>日历</span>
+  </div>
+  <div class="nav-btn" id="nav-info" onclick="switchMode('info')">
+    <span class="nav-icon">📰</span><span>资讯</span>
+  </div>
+  <div class="nav-btn" id="nav-focus" onclick="switchMode('focus')">
+    <span class="nav-icon">🎯</span><span>专注</span>
+  </div>
+  <div class="nav-btn" id="nav-wallpaper" onclick="switchMode('wallpaper')">
+    <span class="nav-icon">🖼</span><span>壁纸</span>
+  </div>
+  <div class="nav-btn" id="nav-settings" onclick="openSettings()">
+    <span class="nav-icon">⚙️</span><span>设置</span>
+  </div>
+</nav>
+
+<!-- ▌SETTINGS OVERLAY -->
+<div id="settingsOverlay">
+  <div class="s-header">
+    <div class="s-title">⚙ 设置</div>
+    <div class="s-close" onclick="closeSettings()">✕ 关闭</div>
+  </div>
+  <div class="s-body">
+
+    <!-- 默认模式 -->
+    <div class="s-section">
+      <div class="s-section-title">默认显示模式</div>
+      <div class="mode-cards" id="modeCards">
+        <div class="mode-card sel" data-m="clock" onclick="pickMode(this)"><div class="mc-icon">🕐</div>时钟信息</div>
+        <div class="mode-card" data-m="calendar" onclick="pickMode(this)"><div class="mc-icon">📅</div>日历</div>
+        <div class="mode-card" data-m="info" onclick="pickMode(this)"><div class="mc-icon">📰</div>资讯面板</div>
+        <div class="mode-card" data-m="focus" onclick="pickMode(this)"><div class="mc-icon">🎯</div>专注模式</div>
+        <div class="mode-card" data-m="wallpaper" onclick="pickMode(this)"><div class="mc-icon">🖼</div>壁纸时钟</div>
+      </div>
+    </div>
+
+    <!-- 刷新 -->
+    <div class="s-section">
+      <div class="s-section-title">刷新策略</div>
+      <div class="s-row">
+        <div><div class="s-label">刷新间隔</div><div class="s-sub">内容自动更新频率</div></div>
+      </div>
+      <div class="chip-row" id="chipRow">
+        <div class="chip" data-v="5" onclick="setInterval_(5,this)">5分钟</div>
+        <div class="chip sel" data-v="15" onclick="setInterval_(15,this)">15分钟</div>
+        <div class="chip" data-v="30" onclick="setInterval_(30,this)">30分钟</div>
+        <div class="chip" data-v="60" onclick="setInterval_(60,this)">1小时</div>
+        <div class="chip" data-v="0" onclick="setInterval_(0,this)">仅手动</div>
+      </div>
+      <div class="s-row">
+        <div><div class="s-label">整点刷新</div><div class="s-sub">仅在整点更新内容</div></div>
+        <label class="toggle"><input type="checkbox" id="topHourChk"><span class="t-slider"></span></label>
+      </div>
+    </div>
+
+    <!-- 夜间模式 -->
+    <div class="s-section">
+      <div class="s-section-title">夜间模式</div>
+      <div class="s-row">
+        <div><div class="s-label">启用夜间模式</div><div class="s-sub">夜间自动切换极简时钟</div></div>
+        <label class="toggle"><input type="checkbox" id="nightChk" checked onchange="onNightToggle()"><span class="t-slider"></span></label>
+      </div>
+      <div id="nightDetail">
+        <div class="night-row">
+          <span style="font-size:12px;font-weight:600;">时段</span>
+          <input type="time" class="s-time" id="nightStart" value="22:00" onchange="saveSt()">
+          <span style="font-size:12px;color:var(--gray);">至</span>
+          <input type="time" class="s-time" id="nightEnd" value="07:00" onchange="saveSt()">
+        </div>
+        <div class="s-row">
+          <div><div class="s-label">夜间跳过刷新</div><div class="s-sub">夜间暂停内容更新</div></div>
+          <label class="toggle"><input type="checkbox" id="nightSkipChk" checked onchange="saveSt()"><span class="t-slider"></span></label>
+        </div>
+        <div class="s-row">
+          <div><div class="s-label">夜间降低亮度</div><div class="s-sub">自动调至最低亮度</div></div>
+          <label class="toggle"><input type="checkbox" id="nightDimChk" checked onchange="saveSt()"><span class="t-slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 显示内容 -->
+    <div class="s-section">
+      <div class="s-section-title">显示内容</div>
+      <div class="s-row">
+        <div class="s-label">显示农历</div>
+        <label class="toggle"><input type="checkbox" id="lunarChk" checked onchange="saveSt()"><span class="t-slider"></span></label>
+      </div>
+      <div class="s-row">
+        <div class="s-label">显示天气</div>
+        <label class="toggle"><input type="checkbox" id="weatherChk" checked onchange="toggleWeatherRow()"><span class="t-slider"></span></label>
+      </div>
+      <div class="s-row">
+        <div class="s-label">显示今日安排</div>
+        <label class="toggle"><input type="checkbox" id="todoChk" checked onchange="toggleTodo()"><span class="t-slider"></span></label>
+      </div>
+      <div class="s-row">
+        <div class="s-label">显示每日一句</div>
+        <label class="toggle"><input type="checkbox" id="quoteChk" checked onchange="toggleQuote()"><span class="t-slider"></span></label>
+      </div>
+      <div class="s-row">
+        <div><div class="s-label">字体大小</div></div>
+        <select class="s-select" id="fontSel" onchange="setFontSize(this.value)">
+          <option value="sm">较小</option>
+          <option value="md" selected>标准</option>
+          <option value="lg">较大</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 内容源 -->
+    <div class="s-section">
+      <div class="s-section-title">内容设置</div>
+      <div class="s-row">
+        <div><div class="s-label">天气城市</div></div>
+        <input class="s-input" id="cityInp" value="北京" placeholder="城市名" onchange="saveSt()">
+      </div>
+      <div class="s-row">
+        <div><div class="s-label">天气 API Key</div><div class="s-sub">和风天气 / OpenWeather</div></div>
+        <input class="s-input" id="apiKeyInp" placeholder="粘贴 Key" onchange="saveSt()">
+      </div>
+      <div class="s-row">
+        <div><div class="s-label">壁纸来源</div></div>
+        <select class="s-select" id="wpSrc" onchange="saveSt()">
+          <option value="bing">每日必应</option>
+          <option value="local">本地图片</option>
+          <option value="pattern" selected>纯色图案</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 系统 -->
+    <div class="s-section">
+      <div class="s-section-title">系统</div>
+      <div class="s-row">
+        <div><div class="s-label">防止锁屏</div><div class="s-sub">保持屏幕常亮（需 APK 支持）</div></div>
+        <label class="toggle"><input type="checkbox" id="keepOnChk" checked onchange="onKeepOn(this)"><span class="t-slider"></span></label>
+      </div>
+      <div class="s-row">
+        <div><div class="s-label">启动全屏</div><div class="s-sub">隐藏状态栏和导航栏</div></div>
+        <label class="toggle"><input type="checkbox" id="fullscreenChk" checked onchange="saveSt()"><span class="t-slider"></span></label>
+      </div>
+      <div class="s-row">
+        <div><div class="s-label">屏幕方向</div></div>
+        <select class="s-select" id="orientSel" onchange="saveSt()">
+          <option value="portrait" selected>竖屏</option>
+          <option value="landscape">横屏</option>
+          <option value="auto">自动</option>
+        </select>
+      </div>
+      <div class="s-row" style="cursor:pointer;" onclick="previewNight()">
+        <div><div class="s-label">预览夜间模式</div><div class="s-sub">查看夜间界面效果</div></div>
+        <span class="s-action">▶ 预览</span>
+      </div>
+      <div class="s-row" style="cursor:pointer;" onclick="doRefresh()">
+        <div><div class="s-label">立即刷新内容</div><div class="s-sub">重新拉取天气 / 新闻</div></div>
+        <span class="s-action">↺ 刷新</span>
+      </div>
+      <div class="s-row" style="cursor:pointer;" onclick="resetAll()">
+        <div><div class="s-label" style="color:#c00;">恢复默认设置</div></div>
+        <span class="s-action" style="color:#c00;">重置</span>
+      </div>
+    </div>
+
+    <div class="s-footer">
+      EInk Panel v1.0 · 掌阅 Neo3 专版<br>
+      <span>设置自动保存到本地</span>
+    </div>
+  </div>
+</div>
+
+<!-- ▌NIGHT OVERLAY -->
+<div id="nightOverlay" onclick="exitNight()">
+  <div class="night-time" id="nightTime">--:--</div>
+  <div class="night-info" id="nightInfo">星期二 · 六月二日</div>
+  <div style="font-size:12px;color:#444;margin-top:4px;" id="nightWeather">⛅ 23°C · 多云</div>
+  <div class="night-hint">点击任意位置退出夜间模式</div>
+</div>
+
+<script>
+'use strict';
+
+// ── DEFAULTS ──────────────────────────────
+const DEFAULTS = {
+  mode: 'clock', interval: 15, topHour: false,
+  night: true, nightStart: '22:00', nightEnd: '07:00',
+  nightSkip: true, nightDim: true,
+  lunar: true, weather: true, todo: true, quote: true,
+  fontSize: 'md', city: '北京', apiKey: '', wpSrc: 'pattern',
+  keepOn: true, fullscreen: true, orient: 'portrait'
+};
+
+let cfg = { ...DEFAULTS };
+try { cfg = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('eink_cfg') || '{}') }; } catch(e) {}
+
+let calY, calM, pomSec, pomRunning = false, pomCount = 0, pomTimeIdx = 0;
+const POM_TIMES = [25, 15, 10, 50];
+let pomInterval = null, cdInterval = null, nextRefresh;
+
+// ── BOOT ──────────────────────────────────
+function init() {
+  const now = new Date();
+  calY = now.getFullYear(); calM = now.getMonth();
+  pomSec = POM_TIMES[0] * 60;
+
+  loadCfgToUI();
+  updateClock();
+  renderCalendar();
+  startClockTick();
+  startCountdown();
+  setInterval(checkNight, 60000);
+  checkNight();
+  pollBattery();
+}
+
+// ── CLOCK ─────────────────────────────────
+const WD = ['日','一','二','三','四','五','六'];
+const WD_FULL = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+
+function updateClock() {
+  const n = new Date();
+  const t = zp(n.getHours()) + ':' + zp(n.getMinutes());
+  const d = `${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日 ${WD_FULL[n.getDay()]}`;
+  const ds = `${WD_FULL[n.getDay()]} · ${n.getMonth()+1}月${n.getDate()}日`;
+  const lun = cfg.lunar ? getLunar(n) : '';
+
+  set('clockTime', t); set('clockDate', d);
+  set('clockLunar', lun ? '农历 ' + lun : '');
+  set('focusTime', t); set('focusDate', ds);
+  set('wpTime', t); set('wpDate', d);
+  set('statusTime', t);
+  set('nightTime', t); set('nightInfo', ds);
+  // wallpaper lunar
+  try { document.getElementById('wpLunar').textContent = lun ? '农历 ' + lun : ''; } catch(e) {}
+}
+
+function startClockTick() {
+  updateClock();
+  const n = new Date();
+  setTimeout(() => { updateClock(); setInterval(updateClock, 60000); },
+    (60 - n.getSeconds()) * 1000 - n.getMilliseconds());
+}
+
+function zp(n) { return n < 10 ? '0' + n : String(n); }
+function set(id, v) { const el = document.getElementById(id); if(el) el.textContent = v; }
+
+// ── BATTERY ───────────────────────────────
+function pollBattery() {
+  let val = '🔋 --';
+  if (window.Android && window.Android.getBatteryLevel) {
+    val = '🔋 ' + window.Android.getBatteryLevel() + '%';
+  } else if (navigator.getBattery) {
+    navigator.getBattery().then(b => {
+      const pct = Math.round(b.level * 100);
+      const ico = b.charging ? '⚡' : '🔋';
+      const s = ico + ' ' + pct + '%';
+      set('statusBattery', s); set('wpBattery', s);
+    });
+    return;
+  }
+  set('statusBattery', val); set('wpBattery', val);
+  setTimeout(pollBattery, 5 * 60 * 1000);
+}
+
+// ── MODE SWITCH ───────────────────────────
+const MODE_NAMES = { clock:'时钟', calendar:'日历', info:'资讯', focus:'专注', wallpaper:'壁纸' };
+
+function switchMode(m) {
+  document.querySelectorAll('.mode').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mode-' + m).classList.add('active');
+  document.getElementById('nav-' + m).classList.add('active');
+  set('statusMode', MODE_NAMES[m]);
+  cfg.mode = m; saveSt();
+}
+
+// ── REFRESH COUNTDOWN ─────────────────────
+function startCountdown() {
+  clearInterval(cdInterval);
+  if (cfg.interval === 0) { set('statusRefresh', '手动刷新'); return; }
+  nextRefresh = cfg.interval * 60;
+  cdInterval = setInterval(() => {
+    nextRefresh--;
+    if (nextRefresh <= 0) {
+      if (!isNight() || !cfg.nightSkip) doRefresh();
+      nextRefresh = cfg.interval * 60;
+    }
+    const m = Math.floor(nextRefresh / 60), s = nextRefresh % 60;
+    set('statusRefresh', m > 0 ? `↺ ${m}min` : `↺ ${s}s`);
+  }, 1000);
+}
+
+function doRefresh() {
+  updateClock(); pollBattery();
+  set('statusRefresh', '↺ 已刷新');
+  setTimeout(startCountdown, 2000);
+}
+
+// ── NIGHT MODE ────────────────────────────
+function isNight() {
+  if (!cfg.night) return false;
+  const n = new Date();
+  const cur = n.getHours() * 60 + n.getMinutes();
+  const [sh, sm] = cfg.nightStart.split(':').map(Number);
+  const [eh, em] = cfg.nightEnd.split(':').map(Number);
+  const st = sh * 60 + sm, en = eh * 60 + em;
+  return st > en ? (cur >= st || cur < en) : (cur >= st && cur < en);
+}
+
+function checkNight() { if (isNight()) activateNight(); }
+
+function activateNight() {
+  updateClock();
+  document.getElementById('nightOverlay').classList.add('show');
+  if (cfg.nightDim && window.Android && window.Android.setScreenBrightness)
+    window.Android.setScreenBrightness(0.05);
+}
+
+function exitNight() {
+  document.getElementById('nightOverlay').classList.remove('show');
+  if (window.Android && window.Android.setScreenBrightness)
+    window.Android.setScreenBrightness(0.5);
+}
+
+function previewNight() { closeSettings(); setTimeout(activateNight, 300); }
+
+// ── CALENDAR ─────────────────────────────
+const LUNAR_DAYS = '初一初二初三初四初五初六初七初八初九初十十一十二十三十四十五十六十七十八十九二十廿一廿二廿三廿四廿五廿六廿七廿八廿九三十'.match(/.{2}/g);
+const LUNAR_MONTHS = ['正月','二月','三月','四月','五月','六月','七月','八月','九月','十月','冬月','腊月'];
+
+function changeMonth(d) {
+  if (d === 0) { const n = new Date(); calY = n.getFullYear(); calM = n.getMonth(); }
+  else { calM += d; if (calM > 11) { calM = 0; calY++; } if (calM < 0) { calM = 11; calY--; } }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  set('calTitle', `${calY}年${calM+1}月`);
+  const fd = new Date(calY, calM, 1).getDay();
+  const dim = new Date(calY, calM + 1, 0).getDate();
+  const prev = new Date(calY, calM, 0).getDate();
+  const today = new Date();
+  const holidays = getHolidays(calY, calM);
+  let html = '', d = 1, nd = 1;
+  const total = Math.ceil((fd + dim) / 7) * 7;
+
+  for (let i = 0; i < total; i++) {
+    if (i % 7 === 0) html += '<tr>';
+    let cd, other = false;
+    if (i < fd) { cd = prev - fd + i + 1; other = true; }
+    else if (d > dim) { cd = nd++; other = true; }
+    else { cd = d++; }
+
+    const dow = i % 7;
+    const isToday = !other && today.getFullYear()===calY && today.getMonth()===calM && today.getDate()===cd;
+    const isWeekend = dow===0||dow===6;
+    const isHoliday = !other && holidays.includes(cd);
+    const lunarShort = !other ? getLunarShort(new Date(calY, calM, cd)) : '';
+
+    let cls = '';
+    if (isToday) cls += ' today';
+    if (isWeekend) cls += ' weekend';
+    if (other) cls += ' other-month';
+    if (isHoliday) cls += ' holiday';
+
+    html += `<td class="${cls.trim()}"><div class="cal-day">
+      <span class="cal-num">${cd}</span>
+      ${!other ? `<span class="cal-sub">${lunarShort}</span>` : ''}
+    </div></td>`;
+    if ((i+1)%7===0) html += '</tr>';
+  }
+  document.getElementById('calBody').innerHTML = html;
+
+  // Festivals
+  const fests = getFestivals(calY, calM);
+  const fl = document.getElementById('festivalList');
+  fl.innerHTML = fests.length
+    ? fests.map(f=>`<div class="festival-row"><span class="festival-date">${calM+1}/${f.day}</span><span>${f.name}</span></div>`).join('')
+    : '<div style="font-size:11px;color:var(--light-gray);">本月无重要节日</div>';
+}
+
+function getHolidays(y, m) {
+  const h = {0:[1],1:[17,18,19,20,21,22,23],3:[4,5,6],4:[1,2,3],5:[19,20,21],9:[1,2,3,4,5,6,7]};
+  return h[m] || [];
+}
+
+function getFestivals(y, m) {
+  const data = {
+    0:[{day:1,name:'元旦 🎉'}],
+    1:[{day:14,name:'情人节 ❤️'}],
+    2:[{day:8,name:'妇女节 🌸'},{day:12,name:'植树节 🌳'}],
+    3:[{day:1,name:'愚人节'},{day:4,name:'清明节 🌿'}],
+    4:[{day:1,name:'劳动节 🛠️'},{day:4,name:'青年节'}],
+    5:[{day:1,name:'儿童节 🎈'},{day:19,name:'端午节 🎋'}],
+    7:[{day:1,name:'建军节 🎖️'}],
+    8:[{day:9,name:'教师节 📚'}],
+    9:[{day:1,name:'国庆节 🇨🇳'}],
+    11:[{day:24,name:'平安夜 🎅'},{day:25,name:'圣诞节 🎄'}]
+  };
+  return data[m] || [];
+}
+
+// ── LUNAR (Approximate) ───────────────────
+// Base: 2026-01-17 = 丙午年 正月初一
+const LU_BASE = new Date(2026, 0, 17);
+const HEAVENLY = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const EARTHLY = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+
+function getLunar(date) {
+  const inf = lunarCalc(date);
+  return inf ? `${inf.year}年 ${inf.month}${inf.day}` : '';
+}
+function getLunarShort(date) {
+  const inf = lunarCalc(date);
+  if (!inf) return '';
+  return inf.dayNum === 1 ? inf.month : inf.day;
+}
+function lunarCalc(date) {
+  try {
+    const diff = Math.floor((date - LU_BASE) / 86400000);
+    const sign = diff < 0 ? -1 : 1;
+    const absd = Math.abs(diff);
+    const yearOff = Math.floor(absd / 354) * sign;
+    const rem = ((diff % 354) + 354) % 354;
+    const mIdx = Math.floor(rem / 29.53);
+    const dayNum = Math.max(1, Math.min(30, Math.round(rem % 29.53) + 1));
+    const sIdx = (2 + yearOff * 2 % 10 + 10) % 10;
+    const bIdx = (6 + yearOff % 12 + 12) % 12;
+    return {
+      year: HEAVENLY[sIdx] + EARTHLY[bIdx],
+      month: LUNAR_MONTHS[mIdx % 12],
+      day: LUNAR_DAYS[dayNum - 1],
+      dayNum
+    };
+  } catch(e) { return null; }
+}
+
+// ── POMODORO ─────────────────────────────
+function togglePom() {
+  if (pomRunning) {
+    clearInterval(pomInterval); pomRunning = false;
+    document.getElementById('pomStartBtn').textContent = '▶ 开始';
+    set('pomStatus', '已暂停');
+  } else {
+    pomRunning = true;
+    document.getElementById('pomStartBtn').textContent = '⏸ 暂停';
+    set('pomStatus', '专注中…');
+    pomInterval = setInterval(() => {
+      pomSec--;
+      if (pomSec <= 0) {
+        clearInterval(pomInterval); pomRunning = false; pomCount++;
+        document.getElementById('pomStartBtn').textContent = '▶ 开始';
+        set('pomStatus', '完成！好好休息 ☕');
+        set('pomCount', `今日完成：${pomCount} 个番茄 🍅`);
+        pomSec = POM_TIMES[pomTimeIdx] * 60;
+      }
+      updatePomDisplay();
+    }, 1000);
+  }
+}
+function resetPom() {
+  clearInterval(pomInterval); pomRunning = false;
+  pomSec = POM_TIMES[pomTimeIdx] * 60;
+  document.getElementById('pomStartBtn').textContent = '▶ 开始';
+  set('pomStatus', '就绪');
+  updatePomDisplay();
+}
+function cyclePomTime() {
+  pomTimeIdx = (pomTimeIdx + 1) % POM_TIMES.length;
+  document.getElementById('pomTimeBtn').textContent = POM_TIMES[pomTimeIdx] + ' min';
+  resetPom();
+}
+function updatePomDisplay() {
+  set('pomTimer', zp(Math.floor(pomSec/60)) + ':' + zp(pomSec%60));
+}
+
+// ── SETTINGS UI ──────────────────────────
+function openSettings() { document.getElementById('settingsOverlay').classList.add('open'); }
+function closeSettings() { document.getElementById('settingsOverlay').classList.remove('open'); }
+
+function loadCfgToUI() {
+  document.getElementById('nightChk').checked = cfg.night;
+  document.getElementById('nightStart').value = cfg.nightStart;
+  document.getElementById('nightEnd').value = cfg.nightEnd;
+  document.getElementById('nightSkipChk').checked = cfg.nightSkip;
+  document.getElementById('nightDimChk').checked = cfg.nightDim;
+  document.getElementById('lunarChk').checked = cfg.lunar;
+  document.getElementById('weatherChk').checked = cfg.weather;
+  document.getElementById('todoChk').checked = cfg.todo;
+  document.getElementById('quoteChk').checked = cfg.quote;
+  document.getElementById('fontSel').value = cfg.fontSize;
+  document.getElementById('cityInp').value = cfg.city;
+  document.getElementById('apiKeyInp').value = cfg.apiKey;
+  document.getElementById('wpSrc').value = cfg.wpSrc;
+  document.getElementById('keepOnChk').checked = cfg.keepOn;
+  document.getElementById('fullscreenChk').checked = cfg.fullscreen;
+  document.getElementById('orientSel').value = cfg.orient;
+  document.getElementById('topHourChk').checked = cfg.topHour;
+  document.getElementById('nightDetail').style.opacity = cfg.night ? '1' : '0.4';
+  // mark active mode card
+  document.querySelectorAll('.mode-card').forEach(c => {
+    c.classList.toggle('sel', c.dataset.m === cfg.mode);
+  });
+  // mark active interval chip
+  document.querySelectorAll('.chip').forEach(c => {
+    c.classList.toggle('sel', Number(c.dataset.v) === cfg.interval);
+  });
+  setFontSize(cfg.fontSize, false);
+  // visibility
+  document.getElementById('weatherRow').style.display = cfg.weather ? '' : 'none';
+  document.getElementById('weatherDetails').style.display = cfg.weather ? '' : 'none';
+  document.getElementById('todoBlock').style.display = cfg.todo ? '' : 'none';
+  document.getElementById('quoteBlock').style.display = cfg.quote ? '' : 'none';
+  switchMode(cfg.mode);
+}
+
+function saveSt() {
+  cfg.nightStart = document.getElementById('nightStart').value;
+  cfg.nightEnd   = document.getElementById('nightEnd').value;
+  cfg.nightSkip  = document.getElementById('nightSkipChk').checked;
+  cfg.nightDim   = document.getElementById('nightDimChk').checked;
+  cfg.lunar      = document.getElementById('lunarChk').checked;
+  cfg.weather    = document.getElementById('weatherChk').checked;
+  cfg.todo       = document.getElementById('todoChk').checked;
+  cfg.quote      = document.getElementById('quoteChk').checked;
+  cfg.city       = document.getElementById('cityInp').value;
+  cfg.apiKey     = document.getElementById('apiKeyInp').value;
+  cfg.wpSrc      = document.getElementById('wpSrc').value;
+  cfg.keepOn     = document.getElementById('keepOnChk').checked;
+  cfg.fullscreen = document.getElementById('fullscreenChk').checked;
+  cfg.orient     = document.getElementById('orientSel').value;
+  cfg.topHour    = document.getElementById('topHourChk').checked;
+  cfg.night      = document.getElementById('nightChk').checked;
+  cfg.fontSize   = document.getElementById('fontSel').value;
+  try { localStorage.setItem('eink_cfg', JSON.stringify(cfg)); } catch(e) {}
+}
+
+function pickMode(card) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('sel'));
+  card.classList.add('sel');
+  cfg.mode = card.dataset.m;
+  saveSt();
+}
+function setInterval_(v, chip) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('sel'));
+  chip.classList.add('sel');
+  cfg.interval = v; saveSt(); startCountdown();
+}
+function onNightToggle() {
+  cfg.night = document.getElementById('nightChk').checked;
+  document.getElementById('nightDetail').style.opacity = cfg.night ? '1' : '0.4';
+  saveSt();
+}
+function toggleWeatherRow() {
+  const show = document.getElementById('weatherChk').checked;
+  document.getElementById('weatherRow').style.display = show ? '' : 'none';
+  document.getElementById('weatherDetails').style.display = show ? '' : 'none';
+  saveSt();
+}
+function toggleTodo() {
+  document.getElementById('todoBlock').style.display = document.getElementById('todoChk').checked ? '' : 'none';
+  saveSt();
+}
+function toggleQuote() {
+  document.getElementById('quoteBlock').style.display = document.getElementById('quoteChk').checked ? '' : 'none';
+  saveSt();
+}
+function setFontSize(v, save = true) {
+  const map = {sm:'14px', md:'16px', lg:'19px'};
+  document.documentElement.style.fontSize = map[v] || '16px';
+  if (save) saveSt();
+}
+function onKeepOn(el) {
+  if (window.Android && window.Android.setKeepScreenOn) window.Android.setKeepScreenOn(el.checked);
+  saveSt();
+}
+function resetAll() {
+  if (confirm('确认恢复所有默认设置？')) {
+    localStorage.removeItem('eink_cfg');
+    cfg = { ...DEFAULTS };
+    loadCfgToUI();
+  }
+}
+
+// ── ANDROID BRIDGE STUBS (browser fallback)
+if (!window.Android) {
+  window.Android = {
+    getBatteryLevel: () => 82,
+    setKeepScreenOn: () => {},
+    setScreenBrightness: () => {},
+    vibrate: () => {}
+  };
+}
+
+// ── GO ────────────────────────────────────
+init();
+</script>
+</body>
+</html>

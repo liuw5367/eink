@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>掌阅 Neo3 日历设计稿</title>
+<style>
+  /* ====== 全局预览样式 ====== */
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&family=ZCOOL+XiaoWei&family=Ma+Shan+Zheng&display=swap');
+
+  :root {
+    /* E-ink 色板 */
+    --ink-black:   #0a0a0a;
+    --ink-dark:    #1a1a1a;
+    --ink-mid:     #444444;
+    --ink-gray:    #888888;
+    --ink-light:   #bbbbbb;
+    --ink-pale:    #dddddd;
+    --ink-bg:      #f4f1ea;
+    --ink-white:   #faf8f3;
+
+    /* 屏幕尺寸: 1072×1448 px, 227ppi, 6英寸 */
+    /* 预览缩放: 0.35x → 375×507 */
+    --scale: 0.35;
+    --w: 1072px;
+    --h: 1448px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #2a2a2a;
+    font-family: 'Noto Sans SC', 'Noto Serif SC', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+    padding: 48px 24px;
+    color: #ccc;
+  }
+
+  h2 {
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  /* 墨水屏容器 */
+  .device {
+    position: relative;
+    width: calc(var(--w) * var(--scale));
+    height: calc(var(--h) * var(--scale));
+    background: #222;
+    border-radius: 16px;
+    padding: 6px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .device::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    border: 1.5px solid #444;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* 墨水屏"纸质"效果 */
+  .screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 11px;
+    overflow: hidden;
+    position: relative;
+  }
+  .screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* ====== 内容实际为1072×1448，用transform缩放 ====== */
+  .canvas {
+    width: var(--w);
+    height: var(--h);
+    transform-origin: top left;
+    transform: scale(var(--scale));
+    position: absolute;
+    top: 0; left: 0;
+  }
+
+  /* ============================================================
+     风格一：「书卷」— 国风宋体，极简留白
+     ============================================================ */
+  .style-shujuan {
+    background: var(--ink-white);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 90px 80px 60px;
+  }
+
+  .sj-topbar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1.5px solid var(--ink-black);
+    padding-bottom: 24px;
+    margin-bottom: 80px;
+  }
+  .sj-weekday {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 32px;
+    font-weight: 300;
+    color: var(--ink-mid);
+    letter-spacing: 6px;
+  }
+  .sj-time {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 34px;
+    font-weight: 300;
+    color: var(--ink-mid);
+    letter-spacing: 4px;
+  }
+  .sj-weather-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Noto Sans SC';
+    font-size: 28px;
+    color: var(--ink-mid);
+  }
+
+  .sj-date-block {
+    text-align: center;
+    margin-bottom: 70px;
+  }
+  .sj-big-day {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 280px;
+    font-weight: 900;
+    color: var(--ink-black);
+    line-height: 0.88;
+    letter-spacing: -8px;
+  }
+  .sj-month-year {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 48px;
+    font-weight: 300;
+    color: var(--ink-mid);
+    letter-spacing: 12px;
+    margin-top: 24px;
+  }
+
+  .sj-divider {
+    width: 240px;
+    height: 1.5px;
+    background: var(--ink-black);
+    margin: 40px auto;
+  }
+
+  .sj-lunar {
+    font-family: 'ZCOOL XiaoWei', serif;
+    font-size: 52px;
+    color: var(--ink-dark);
+    letter-spacing: 10px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .sj-festival {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 32px;
+    color: var(--ink-gray);
+    letter-spacing: 8px;
+    text-align: center;
+  }
+
+  .sj-week-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-top: 60px;
+    border-top: 1px solid var(--ink-pale);
+    padding-top: 32px;
+  }
+  .sj-week-header {
+    font-family: 'Noto Sans SC';
+    font-size: 24px;
+    font-weight: 300;
+    color: var(--ink-gray);
+    text-align: center;
+    padding: 12px 0;
+    letter-spacing: 2px;
+  }
+  .sj-week-header.wend { color: var(--ink-black); font-weight: 600; }
+
+  .sj-cal-day {
+    text-align: center;
+    padding: 16px 4px;
+    font-family: 'Noto Serif SC', serif;
+  }
+  .sj-cal-day .day-num {
+    font-size: 32px;
+    font-weight: 300;
+    color: var(--ink-mid);
+    display: block;
+  }
+  .sj-cal-day .day-lun {
+    font-size: 18px;
+    color: var(--ink-light);
+    display: block;
+    margin-top: 4px;
+  }
+  .sj-cal-day.today .day-num {
+    background: var(--ink-black);
+    color: var(--ink-white);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-size: 34px;
+  }
+  .sj-cal-day.wend .day-num { color: var(--ink-dark); font-weight: 500; }
+
+  .sj-bottom {
+    margin-top: auto;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-top: 40px;
+    border-top: 1px solid var(--ink-pale);
+  }
+  .sj-weather-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sj-weather-detail .city {
+    font-size: 28px;
+    font-family: 'Noto Sans SC';
+    color: var(--ink-gray);
+    letter-spacing: 4px;
+  }
+  .sj-weather-detail .temp {
+    font-size: 52px;
+    font-family: 'Noto Serif SC';
+    color: var(--ink-dark);
+    font-weight: 300;
+  }
+  .sj-weather-detail .desc {
+    font-size: 26px;
+    font-family: 'Noto Sans SC';
+    color: var(--ink-gray);
+    letter-spacing: 2px;
+  }
+  .sj-quote {
+    text-align: right;
+    font-family: 'ZCOOL XiaoWei', serif;
+    font-size: 26px;
+    color: var(--ink-light);
+    line-height: 2;
+    letter-spacing: 4px;
+    max-width: 380px;
+  }
+
+
+  /* ============================================================
+     风格二：「格栅」— 功能优先，信息密集，工程师美学
+     ============================================================ */
+  .style-grid {
+    background: var(--ink-bg);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .gr-header {
+    background: var(--ink-black);
+    color: var(--ink-white);
+    padding: 40px 60px 36px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .gr-header-left { display: flex; flex-direction: column; gap: 8px; }
+  .gr-big-date {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 96px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    line-height: 1;
+  }
+  .gr-month-wd {
+    font-size: 30px;
+    font-weight: 300;
+    letter-spacing: 8px;
+    color: var(--ink-pale);
+  }
+  .gr-header-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: flex-end;
+  }
+  .gr-time {
+    font-family: 'Noto Sans SC';
+    font-size: 72px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  .gr-lunar-tag {
+    display: inline-block;
+    border: 1.5px solid var(--ink-pale);
+    padding: 6px 20px;
+    font-size: 24px;
+    letter-spacing: 4px;
+    color: var(--ink-pale);
+  }
+
+  .gr-info-row {
+    display: flex;
+    border-bottom: 1px solid var(--ink-pale);
+  }
+  .gr-info-cell {
+    flex: 1;
+    padding: 26px 40px;
+    border-right: 1px solid var(--ink-pale);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .gr-info-cell:last-child { border-right: none; }
+  .gr-cell-label {
+    font-size: 20px;
+    font-weight: 300;
+    color: var(--ink-gray);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .gr-cell-val {
+    font-family: 'Noto Serif SC';
+    font-size: 34px;
+    color: var(--ink-dark);
+    letter-spacing: 2px;
+  }
+
+  .gr-calendar {
+    flex: 1;
+    padding: 36px 50px 0;
+  }
+  .gr-cal-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 8px;
+  }
+  .gr-cal-wh {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--ink-gray);
+    padding: 8px 0;
+    letter-spacing: 1px;
+  }
+  .gr-cal-wh.end { color: var(--ink-dark); font-weight: 500; }
+
+  .gr-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+  }
+  .gr-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 0.5px solid transparent;
+    position: relative;
+  }
+  .gr-day .d-num {
+    font-family: 'Noto Sans SC';
+    font-size: 36px;
+    font-weight: 300;
+    color: var(--ink-mid);
+  }
+  .gr-day .d-lun {
+    font-size: 18px;
+    color: var(--ink-light);
+    margin-top: 2px;
+  }
+  .gr-day.cur-month .d-num { color: var(--ink-dark); }
+  .gr-day.end-col .d-num { color: var(--ink-dark); font-weight: 500; }
+  .gr-day.today {
+    background: var(--ink-dark);
+  }
+  .gr-day.today .d-num { color: var(--ink-white); font-weight: 700; }
+  .gr-day.today .d-lun { color: var(--ink-pale); }
+  .gr-day.has-dot::after {
+    content: '';
+    position: absolute;
+    bottom: 8px;
+    width: 6px;
+    height: 6px;
+    background: var(--ink-dark);
+    border-radius: 50%;
+  }
+
+  .gr-footer {
+    padding: 28px 50px;
+    background: var(--ink-black);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .gr-weather-row {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+  .gr-w-icon { font-size: 52px; }
+  .gr-w-temp {
+    font-family: 'Noto Sans SC';
+    font-size: 56px;
+    font-weight: 300;
+    color: var(--ink-white);
+  }
+  .gr-w-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .gr-w-city { font-size: 24px; color: var(--ink-pale); letter-spacing: 4px; }
+  .gr-w-desc { font-size: 26px; color: var(--ink-white); letter-spacing: 2px; }
+  .gr-footer-right {
+    text-align: right;
+    color: var(--ink-pale);
+    font-size: 24px;
+    letter-spacing: 4px;
+    line-height: 2;
+  }
+
+
+  /* ============================================================
+     风格三：「版刻」— 黑底白字，强对比，大字冲击
+     ============================================================ */
+  .style-banke {
+    background: var(--ink-black);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    color: var(--ink-white);
+  }
+
+  .bk-top {
+    padding: 60px 70px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .bk-left-info { display: flex; flex-direction: column; gap: 12px; }
+  .bk-weekday {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 36px;
+    font-weight: 300;
+    color: var(--ink-pale);
+    letter-spacing: 10px;
+  }
+  .bk-lunar {
+    font-family: 'ZCOOL XiaoWei', serif;
+    font-size: 40px;
+    color: var(--ink-light);
+    letter-spacing: 6px;
+  }
+  .bk-time {
+    font-family: 'Noto Sans SC';
+    font-size: 44px;
+    font-weight: 200;
+    color: var(--ink-pale);
+    letter-spacing: 4px;
+    margin-top: 8px;
+  }
+  .bk-weather-badge {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 16px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .bk-w-temp { font-size: 56px; font-weight: 200; letter-spacing: 2px; }
+  .bk-w-desc { font-size: 26px; color: var(--ink-light); letter-spacing: 4px; }
+  .bk-w-city { font-size: 22px; color: var(--ink-gray); letter-spacing: 4px; }
+
+  .bk-hero {
+    text-align: center;
+    padding: 20px 60px 0;
+    position: relative;
+  }
+  .bk-day-num {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 340px;
+    font-weight: 900;
+    color: var(--ink-white);
+    line-height: 0.85;
+    letter-spacing: -10px;
+  }
+  .bk-month-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    margin-top: 16px;
+  }
+  .bk-bar-line { flex: 1; height: 1.5px; background: var(--ink-mid); }
+  .bk-month-text {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 40px;
+    font-weight: 300;
+    color: var(--ink-pale);
+    letter-spacing: 14px;
+    padding: 0 30px;
+  }
+
+  .bk-week-row {
+    padding: 36px 70px 0;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+  }
+  .bk-week-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .bk-wc-label {
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--ink-gray);
+    letter-spacing: 1px;
+  }
+  .bk-wc-num {
+    font-family: 'Noto Serif SC';
+    font-size: 40px;
+    font-weight: 300;
+    color: var(--ink-light);
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .bk-wc-lun {
+    font-size: 18px;
+    color: rgba(255,255,255,0.3);
+  }
+  .bk-week-cell.active .bk-wc-num {
+    background: var(--ink-white);
+    color: var(--ink-black);
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .bk-week-cell.active .bk-wc-lun { color: var(--ink-gray); }
+
+  .bk-bottom {
+    margin-top: auto;
+    padding: 36px 70px 56px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin-top: 32px;
+  }
+  .bk-forecast {
+    display: flex;
+    gap: 48px;
+  }
+  .bk-fc-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  .bk-fc-day { font-size: 22px; color: var(--ink-gray); letter-spacing: 2px; }
+  .bk-fc-icon { font-size: 44px; }
+  .bk-fc-temp { font-size: 28px; color: var(--ink-pale); }
+
+  .bk-slogan {
+    font-family: 'Ma Shan Zheng', cursive;
+    font-size: 32px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 8px;
+    text-align: right;
+    line-height: 2.2;
+    max-width: 360px;
+  }
+
+
+  /* ============================================================
+     风格四：「晨报」— 竖排排版，文字优先，杂志风
+     ============================================================ */
+  .style-chenbao {
+    background: var(--ink-white);
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .cb-masthead {
+    grid-column: 1 / -1;
+    background: var(--ink-black);
+    color: var(--ink-white);
+    padding: 32px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cb-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 36px;
+    font-weight: 300;
+    letter-spacing: 12px;
+    color: var(--ink-pale);
+  }
+  .cb-date-line {
+    font-family: 'Noto Sans SC';
+    font-size: 24px;
+    color: var(--ink-pale);
+    letter-spacing: 4px;
+  }
+
+  .cb-main {
+    padding: 60px 60px 0 60px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--ink-pale);
+  }
+  .cb-big-date {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 220px;
+    font-weight: 900;
+    color: var(--ink-black);
+    line-height: 0.9;
+    letter-spacing: -6px;
+  }
+  .cb-date-meta {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 2px solid var(--ink-black);
+  }
+  .cb-wd-tag {
+    font-family: 'Noto Serif SC';
+    font-size: 36px;
+    font-weight: 600;
+    color: var(--ink-black);
+    letter-spacing: 4px;
+  }
+  .cb-lunar-info {
+    font-size: 28px;
+    color: var(--ink-mid);
+    letter-spacing: 4px;
+  }
+  .cb-time-big {
+    font-family: 'Noto Sans SC';
+    font-size: 96px;
+    font-weight: 200;
+    color: var(--ink-dark);
+    letter-spacing: 0;
+    margin-top: 40px;
+    letter-spacing: -2px;
+  }
+
+  .cb-mini-cal {
+    margin-top: 48px;
+    flex: 1;
+  }
+  .cb-mini-cal-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--ink-pale);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+  .cb-wh { text-align: center; font-size: 22px; color: var(--ink-gray); }
+  .cb-wh.end { color: var(--ink-dark); font-weight: 500; }
+  .cb-days-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cb-d {
+    text-align: center;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .cb-d .n {
+    font-family: 'Noto Serif SC';
+    font-size: 32px;
+    font-weight: 300;
+    color: var(--ink-mid);
+  }
+  .cb-d .l { font-size: 16px; color: var(--ink-light); margin-top: 2px; }
+  .cb-d.today .n {
+    background: var(--ink-black);
+    color: var(--ink-white);
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+  .cb-d.cur .n { color: var(--ink-dark); }
+  .cb-d.end .n { font-weight: 600; }
+
+  .cb-sidebar {
+    display: flex;
+    flex-direction: column;
+    padding: 40px 44px;
+    gap: 0;
+  }
+  .cb-sb-section {
+    padding: 32px 0;
+    border-bottom: 1px solid var(--ink-pale);
+  }
+  .cb-sb-section:last-child { border-bottom: none; }
+  .cb-sb-title {
+    font-size: 20px;
+    font-weight: 300;
+    color: var(--ink-gray);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .cb-weather-main {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .cb-w-icon { font-size: 64px; line-height: 1; }
+  .cb-w-temp-big {
+    font-family: 'Noto Sans SC';
+    font-size: 72px;
+    font-weight: 200;
+    color: var(--ink-dark);
+    line-height: 1;
+  }
+  .cb-w-detail {
+    font-size: 26px;
+    color: var(--ink-mid);
+    letter-spacing: 2px;
+    line-height: 2;
+  }
+  .cb-forecast-list { display: flex; flex-direction: column; gap: 16px; }
+  .cb-fc {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 24px;
+  }
+  .cb-fc .day { color: var(--ink-gray); letter-spacing: 3px; }
+  .cb-fc .temp { color: var(--ink-dark); font-family: 'Noto Sans SC'; }
+  .cb-fc .icon { font-size: 28px; }
+
+  .cb-events {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .cb-ev {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .cb-ev-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--ink-dark);
+    border-radius: 50%;
+    margin-top: 12px;
+    flex-shrink: 0;
+  }
+  .cb-ev-text { font-size: 24px; color: var(--ink-dark); letter-spacing: 1px; line-height: 1.6; }
+  .cb-ev-time { font-size: 20px; color: var(--ink-gray); margin-top: 2px; letter-spacing: 2px; }
+
+  .cb-footer {
+    grid-column: 1 / -1;
+    padding: 20px 60px;
+    border-top: 2px solid var(--ink-black);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cb-footer-l {
+    font-size: 22px;
+    color: var(--ink-gray);
+    letter-spacing: 4px;
+  }
+  .cb-footer-r {
+    font-family: 'Noto Serif SC';
+    font-size: 24px;
+    color: var(--ink-mid);
+    letter-spacing: 6px;
+  }
+
+
+</style>
+</head>
+<body>
+
+<!-- ===== 风格一：书卷 ===== -->
+<div>
+  <h2>风格一 · 书卷 — 国风宋体 · 大字留白</h2>
+  <div class="device">
+    <div class="screen">
+      <div class="canvas style-shujuan">
+        <div class="sj-topbar">
+          <span class="sj-weekday">星期三</span>
+          <span class="sj-time">08:47</span>
+          <span class="sj-weather-top">⛅ 24°C</span>
+        </div>
+
+        <div class="sj-date-block">
+          <div class="sj-big-day">03</div>
+          <div class="sj-month-year">二〇二六年六月</div>
+        </div>
+
+        <div class="sj-divider"></div>
+        <div class="sj-lunar">农历五月初九</div>
+        <div class="sj-festival">庚午月　壬子日</div>
+
+        <div class="sj-week-grid">
+          <div class="sj-week-header">日</div>
+          <div class="sj-week-header">一</div>
+          <div class="sj-week-header">二</div>
+          <div class="sj-week-header">三</div>
+          <div class="sj-week-header">四</div>
+          <div class="sj-week-header">五</div>
+          <div class="sj-week-header wend">六</div>
+
+          <!-- 六月日历 -->
+          <div class="sj-cal-day wend"><span class="day-num">1</span><span class="day-lun">初七</span></div>
+          <div class="sj-cal-day"><span class="day-num">2</span><span class="day-lun">初八</span></div>
+          <div class="sj-cal-day today"><span class="day-num">3</span><span class="day-lun">初九</span></div>
+          <div class="sj-cal-day"><span class="day-num">4</span><span class="day-lun">初十</span></div>
+          <div class="sj-cal-day"><span class="day-num">5</span><span class="day-lun">芒种</span></div>
+          <div class="sj-cal-day"><span class="day-num">6</span><span class="day-lun">十二</span></div>
+          <div class="sj-cal-day wend"><span class="day-num">7</span><span class="day-lun">十三</span></div>
+
+          <div class="sj-cal-day wend"><span class="day-num">8</span><span class="day-lun">十四</span></div>
+          <div class="sj-cal-day"><span class="day-num">9</span><span class="day-lun">十五</span></div>
+          <div class="sj-cal-day"><span class="day-num">10</span><span class="day-lun">十六</span></div>
+          <div class="sj-cal-day"><span class="day-num">11</span><span class="day-lun">十七</span></div>
+          <div class="sj-cal-day"><span class="day-num">12</span><span class="day-lun">十八</span></div>
+          <div class="sj-cal-day"><span class="day-num">13</span><span class="day-lun">十九</span></div>
+          <div class="sj-cal-day wend"><span class="day-num">14</span><span class="day-lun">二十</span></div>
+
+          <div class="sj-cal-day wend"><span class="day-num">15</span><span class="day-lun">廿一</span></div>
+          <div class="sj-cal-day"><span class="day-num">16</span><span class="day-lun">廿二</span></div>
+          <div class="sj-cal-day"><span class="day-num">17</span><span class="day-lun">廿三</span></div>
+          <div class="sj-cal-day"><span class="day-num">18</span><span class="day-lun">廿四</span></div>
+          <div class="sj-cal-day"><span class="day-num">19</span><span class="day-lun">廿五</span></div>
+          <div class="sj-cal-day"><span class="day-num">20</span><span class="day-lun">廿六</span></div>
+          <div class="sj-cal-day wend"><span class="day-num">21</span><span class="day-lun">夏至</span></div>
+
+          <div class="sj-cal-day wend"><span class="day-num">22</span><span class="day-lun">廿八</span></div>
+          <div class="sj-cal-day"><span class="day-num">23</span><span class="day-lun">廿九</span></div>
+          <div class="sj-cal-day"><span class="day-num">24</span><span class="day-lun">三十</span></div>
+          <div class="sj-cal-day"><span class="day-num">25</span><span class="day-lun">六月</span></div>
+          <div class="sj-cal-day"><span class="day-num">26</span><span class="day-lun">初二</span></div>
+          <div class="sj-cal-day"><span class="day-num">27</span><span class="day-lun">初三</span></div>
+          <div class="sj-cal-day wend"><span class="day-num">28</span><span class="day-lun">初四</span></div>
+
+          <div class="sj-cal-day wend"><span class="day-num">29</span><span class="day-lun">初五</span></div>
+          <div class="sj-cal-day"><span class="day-num">30</span><span class="day-lun">初六</span></div>
+        </div>
+
+        <div class="sj-bottom">
+          <div class="sj-weather-detail">
+            <span class="city">北京</span>
+            <span class="temp">24°C / 32°C</span>
+            <span class="desc">多云转晴 · 南风3级</span>
+          </div>
+          <div class="sj-quote">
+            春水满四泽<br>
+            夏云多奇峰
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 风格二：格栅 ===== -->
+<div>
+  <h2>风格二 · 格栅 — 信息密集 · 工程师美学</h2>
+  <div class="device">
+    <div class="screen">
+      <div class="canvas style-grid">
+        <div class="gr-header">
+          <div class="gr-header-left">
+            <div class="gr-big-date">03</div>
+            <div class="gr-month-wd">JUN 2026 · WEDNESDAY</div>
+          </div>
+          <div class="gr-header-right">
+            <div class="gr-time">08:47</div>
+            <div class="gr-lunar-tag">农历五月初九</div>
+          </div>
+        </div>
+
+        <div class="gr-info-row">
+          <div class="gr-info-cell">
+            <span class="gr-cell-label">节气</span>
+            <span class="gr-cell-val">距芒种 2天</span>
+          </div>
+          <div class="gr-info-cell">
+            <span class="gr-cell-label">天气</span>
+            <span class="gr-cell-val">⛅ 多云 24°</span>
+          </div>
+          <div class="gr-info-cell">
+            <span class="gr-cell-label">空气</span>
+            <span class="gr-cell-val">AQI 42 优</span>
+          </div>
+          <div class="gr-info-cell">
+            <span class="gr-cell-label">湿度</span>
+            <span class="gr-cell-val">58%</span>
+          </div>
+        </div>
+
+        <div class="gr-calendar">
+          <div class="gr-cal-header">
+            <div class="gr-cal-wh end">日</div>
+            <div class="gr-cal-wh">一</div>
+            <div class="gr-cal-wh">二</div>
+            <div class="gr-cal-wh">三</div>
+            <div class="gr-cal-wh">四</div>
+            <div class="gr-cal-wh">五</div>
+            <div class="gr-cal-wh end">六</div>
+          </div>
+          <div class="gr-cal-grid">
+            <!-- week 1 -->
+            <div class="gr-day cur-month end-col"><span class="d-num">1</span><span class="d-lun">初七</span></div>
+            <div class="gr-day cur-month"><span class="d-num">2</span><span class="d-lun">初八</span></div>
+            <div class="gr-day today"><span class="d-num">3</span><span class="d-lun">初九</span></div>
+            <div class="gr-day cur-month"><span class="d-num">4</span><span class="d-lun">初十</span></div>
+            <div class="gr-day cur-month has-dot"><span class="d-num">5</span><span class="d-lun">芒种</span></div>
+            <div class="gr-day cur-month"><span class="d-num">6</span><span class="d-lun">十二</span></div>
+            <div class="gr-day cur-month end-col"><span class="d-num">7</span><span class="d-lun">十三</span></div>
+            <!-- week 2 -->
+            <div class="gr-day cur-month end-col"><span class="d-num">8</span><span class="d-lun">十四</span></div>
+            <div class="gr-day cur-month"><span class="d-num">9</span><span class="d-lun">十五</span></div>
+            <div class="gr-day cur-month"><span class="d-num">10</span><span class="d-lun">十六</span></div>
+            <div class="gr-day cur-month"><span class="d-num">11</span><span class="d-lun">十七</span></div>
+            <div class="gr-day cur-month"><span class="d-num">12</span><span class="d-lun">十八</span></div>
+            <div class="gr-day cur-month"><span class="d-num">13</span><span class="d-lun">十九</span></div>
+            <div class="gr-day cur-month end-col"><span class="d-num">14</span><span class="d-lun">廿十</span></div>
+            <!-- week 3 -->
+            <div class="gr-day cur-month end-col"><span class="d-num">15</span><span class="d-lun">廿一</span></div>
+            <div class="gr-day cur-month"><span class="d-num">16</span><span class="d-lun">廿二</span></div>
+            <div class="gr-day cur-month"><span class="d-num">17</span><span class="d-lun">廿三</span></div>
+            <div class="gr-day cur-month"><span class="d-num">18</span><span class="d-lun">廿四</span></div>
+            <div class="gr-day cur-month"><span class="d-num">19</span><span class="d-lun">廿五</span></div>
+            <div class="gr-day cur-month"><span class="d-num">20</span><span class="d-lun">廿六</span></div>
+            <div class="gr-day cur-month end-col has-dot"><span class="d-num">21</span><span class="d-lun">夏至</span></div>
+            <!-- week 4 -->
+            <div class="gr-day cur-month end-col"><span class="d-num">22</span><span class="d-lun">廿八</span></div>
+            <div class="gr-day cur-month"><span class="d-num">23</span><span class="d-lun">廿九</span></div>
+            <div class="gr-day cur-month"><span class="d-num">24</span><span class="d-lun">三十</span></div>
+            <div class="gr-day cur-month"><span class="d-num">25</span><span class="d-lun">六月</span></div>
+            <div class="gr-day cur-month"><span class="d-num">26</span><span class="d-lun">初二</span></div>
+            <div class="gr-day cur-month"><span class="d-num">27</span><span class="d-lun">初三</span></div>
+            <div class="gr-day cur-month end-col"><span class="d-num">28</span><span class="d-lun">初四</span></div>
+            <!-- week 5 -->
+            <div class="gr-day cur-month end-col"><span class="d-num">29</span><span class="d-lun">初五</span></div>
+            <div class="gr-day cur-month"><span class="d-num">30</span><span class="d-lun">初六</span></div>
+          </div>
+        </div>
+
+        <div class="gr-footer">
+          <div class="gr-weather-row">
+            <div class="gr-w-icon">⛅</div>
+            <div class="gr-w-temp">24°</div>
+            <div class="gr-w-info">
+              <span class="gr-w-city">北  京</span>
+              <span class="gr-w-desc">多云 · 南风</span>
+            </div>
+          </div>
+          <div class="gr-footer-right">
+            明日：晴 32° / 22°<br>
+            日出 04:45 · 日落 19:47
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 风格三：版刻 ===== -->
+<div>
+  <h2>风格三 · 版刻 — 黑底白字 · 强冲击感</h2>
+  <div class="device">
+    <div class="screen">
+      <div class="canvas style-banke">
+        <div class="bk-top">
+          <div class="bk-left-info">
+            <div class="bk-weekday">星  期  三</div>
+            <div class="bk-lunar">农历五月初九</div>
+            <div class="bk-time">08:47</div>
+          </div>
+          <div class="bk-weather-badge">
+            <span class="bk-w-temp">24°C</span>
+            <span class="bk-w-desc">多云转晴</span>
+            <span class="bk-w-city">北京</span>
+          </div>
+        </div>
+
+        <div class="bk-hero">
+          <div class="bk-day-num">03</div>
+          <div class="bk-month-bar">
+            <div class="bk-bar-line"></div>
+            <div class="bk-month-text">二〇二六年六月</div>
+            <div class="bk-bar-line"></div>
+          </div>
+        </div>
+
+        <div class="bk-week-row">
+          <div class="bk-week-cell">
+            <span class="bk-wc-label">日</span>
+            <span class="bk-wc-num">1</span>
+            <span class="bk-wc-lun">初七</span>
+          </div>
+          <div class="bk-week-cell">
+            <span class="bk-wc-label">一</span>
+            <span class="bk-wc-num">2</span>
+            <span class="bk-wc-lun">初八</span>
+          </div>
+          <div class="bk-week-cell active">
+            <span class="bk-wc-label">二</span>
+            <span class="bk-wc-num">3</span>
+            <span class="bk-wc-lun">初九</span>
+          </div>
+          <div class="bk-week-cell">
+            <span class="bk-wc-label">三</span>
+            <span class="bk-wc-num">4</span>
+            <span class="bk-wc-lun">初十</span>
+          </div>
+          <div class="bk-week-cell">
+            <span class="bk-wc-label">四</span>
+            <span class="bk-wc-num">5</span>
+            <span class="bk-wc-lun">芒种</span>
+          </div>
+          <div class="bk-week-cell">
+            <span class="bk-wc-label">五</span>
+            <span class="bk-wc-num">6</span>
+            <span class="bk-wc-lun">十二</span>
+          </div>
+          <div class="bk-week-cell">
+            <span class="bk-wc-label">六</span>
+            <span class="bk-wc-num">7</span>
+            <span class="bk-wc-lun">十三</span>
+          </div>
+        </div>
+
+        <div class="bk-bottom">
+          <div class="bk-forecast">
+            <div class="bk-fc-item">
+              <span class="bk-fc-day">今天</span>
+              <span class="bk-fc-icon">⛅</span>
+              <span class="bk-fc-temp">24/32°</span>
+            </div>
+            <div class="bk-fc-item">
+              <span class="bk-fc-day">明天</span>
+              <span class="bk-fc-icon">☀️</span>
+              <span class="bk-fc-temp">22/34°</span>
+            </div>
+            <div class="bk-fc-item">
+              <span class="bk-fc-day">周五</span>
+              <span class="bk-fc-icon">🌤</span>
+              <span class="bk-fc-temp">20/30°</span>
+            </div>
+            <div class="bk-fc-item">
+              <span class="bk-fc-day">周六</span>
+              <span class="bk-fc-icon">🌧</span>
+              <span class="bk-fc-temp">18/25°</span>
+            </div>
+          </div>
+          <div class="bk-slogan">
+            万物并育而不相害<br>
+            道并行而不相悖
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 风格四：晨报 ===== -->
+<div>
+  <h2>风格四 · 晨报 — 双栏杂志 · 信息全面</h2>
+  <div class="device">
+    <div class="screen">
+      <div class="canvas style-chenbao">
+        <div class="cb-masthead">
+          <span class="cb-title">每　日　历　书</span>
+          <span class="cb-date-line">2026 · JUN · WED</span>
+        </div>
+
+        <div class="cb-main">
+          <div class="cb-big-date">03</div>
+          <div class="cb-date-meta">
+            <span class="cb-wd-tag">星期三</span>
+            <span class="cb-lunar-info">农历 五月初九 · 庚午月</span>
+          </div>
+          <div class="cb-time-big">08:47</div>
+
+          <div class="cb-mini-cal">
+            <div class="cb-mini-cal-header">
+              <div class="cb-wh end">日</div>
+              <div class="cb-wh">一</div>
+              <div class="cb-wh">二</div>
+              <div class="cb-wh">三</div>
+              <div class="cb-wh">四</div>
+              <div class="cb-wh">五</div>
+              <div class="cb-wh end">六</div>
+            </div>
+            <div class="cb-days-grid">
+              <div class="cb-d cur end"><span class="n">1</span><span class="l">初七</span></div>
+              <div class="cb-d cur"><span class="n">2</span><span class="l">初八</span></div>
+              <div class="cb-d today"><span class="n">3</span><span class="l">初九</span></div>
+              <div class="cb-d cur"><span class="n">4</span><span class="l">初十</span></div>
+              <div class="cb-d cur"><span class="n">5</span><span class="l">芒种</span></div>
+              <div class="cb-d cur"><span class="n">6</span><span class="l">十二</span></div>
+              <div class="cb-d cur end"><span class="n">7</span><span class="l">十三</span></div>
+              <div class="cb-d cur end"><span class="n">8</span><span class="l">十四</span></div>
+              <div class="cb-d cur"><span class="n">9</span><span class="l">十五</span></div>
+              <div class="cb-d cur"><span class="n">10</span><span class="l">十六</span></div>
+              <div class="cb-d cur"><span class="n">11</span><span class="l">十七</span></div>
+              <div class="cb-d cur"><span class="n">12</span><span class="l">十八</span></div>
+              <div class="cb-d cur"><span class="n">13</span><span class="l">十九</span></div>
+              <div class="cb-d cur end"><span class="n">14</span><span class="l">廿十</span></div>
+              <div class="cb-d cur end"><span class="n">15</span><span class="l">廿一</span></div>
+              <div class="cb-d cur"><span class="n">16</span><span class="l">廿二</span></div>
+              <div class="cb-d cur"><span class="n">17</span><span class="l">廿三</span></div>
+              <div class="cb-d cur"><span class="n">18</span><span class="l">廿四</span></div>
+              <div class="cb-d cur"><span class="n">19</span><span class="l">廿五</span></div>
+              <div class="cb-d cur"><span class="n">20</span><span class="l">廿六</span></div>
+              <div class="cb-d cur end"><span class="n">21</span><span class="l">夏至</span></div>
+              <div class="cb-d cur end"><span class="n">22</span><span class="l">廿八</span></div>
+              <div class="cb-d cur"><span class="n">23</span><span class="l">廿九</span></div>
+              <div class="cb-d cur"><span class="n">24</span><span class="l">三十</span></div>
+              <div class="cb-d cur"><span class="n">25</span><span class="l">六月</span></div>
+              <div class="cb-d cur"><span class="n">26</span><span class="l">初二</span></div>
+              <div class="cb-d cur"><span class="n">27</span><span class="l">初三</span></div>
+              <div class="cb-d cur end"><span class="n">28</span><span class="l">初四</span></div>
+              <div class="cb-d cur end"><span class="n">29</span><span class="l">初五</span></div>
+              <div class="cb-d cur"><span class="n">30</span><span class="l">初六</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cb-sidebar">
+          <div class="cb-sb-section">
+            <div class="cb-sb-title">天　气</div>
+            <div class="cb-weather-main">
+              <span class="cb-w-icon">⛅</span>
+              <span class="cb-w-temp-big">24°</span>
+            </div>
+            <div class="cb-w-detail">
+              北京 · 多云转晴<br>
+              32° / 22° · 南风 3级<br>
+              湿度 58%
+            </div>
+          </div>
+
+          <div class="cb-sb-section">
+            <div class="cb-sb-title">明日预报</div>
+            <div class="cb-forecast-list">
+              <div class="cb-fc">
+                <span class="day">周四</span>
+                <span class="icon">☀️</span>
+                <span class="temp">34°/22°</span>
+              </div>
+              <div class="cb-fc">
+                <span class="day">周五</span>
+                <span class="icon">🌤</span>
+                <span class="temp">30°/20°</span>
+              </div>
+              <div class="cb-fc">
+                <span class="day">周六</span>
+                <span class="icon">🌧</span>
+                <span class="temp">25°/18°</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cb-sb-section">
+            <div class="cb-sb-title">日程</div>
+            <div class="cb-events">
+              <div class="cb-ev">
+                <div class="cb-ev-dot"></div>
+                <div>
+                  <div class="cb-ev-text">团队周会</div>
+                  <div class="cb-ev-time">10:00 · 会议室A</div>
+                </div>
+              </div>
+              <div class="cb-ev">
+                <div class="cb-ev-dot"></div>
+                <div>
+                  <div class="cb-ev-text">产品评审</div>
+                  <div class="cb-ev-time">14:30 · 线上</div>
+                </div>
+              </div>
+              <div class="cb-ev">
+                <div class="cb-ev-dot"></div>
+                <div>
+                  <div class="cb-ev-text">芒种 · 后天</div>
+                  <div class="cb-ev-time">节气提醒</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cb-footer">
+          <span class="cb-footer-l">日出 04:45 · 日落 19:47</span>
+          <span class="cb-footer-r">宜：出行　忌：动土</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
