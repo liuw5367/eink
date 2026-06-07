@@ -7,6 +7,15 @@ android {
     namespace = "com.liuw.eink"
     compileSdk = 34
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("keystore")
+            storePassword = "123456"
+            keyAlias = "keystore"
+            keyPassword = "123456"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.liuw.eink"
         minSdk = 26
@@ -22,6 +31,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -50,7 +60,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
